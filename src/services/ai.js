@@ -1,5 +1,24 @@
 // src/services/ai.js
+// Add sanitization helper function
+const sanitizeInput = (text) => {
+  // Allow letters, numbers, spaces, and common punctuation
+  // Preserves non-English characters (Unicode)
+  return text
+    .replace(/[^\p{L}\p{N}\s.,;:()\-'"@/\\#%&+=*~<>^{}|_$!?]/gu, '') 
+    .replace(/\s+/g, ' ')   // Collapse multiple spaces
+    .trim()                 // Trim whitespace
+    .substring(0, 2000);    // Limit to 2000 characters
+};
+
 export const generatePatentDraft = async (description) => {
+  // Sanitize input before processing
+  const sanitizedDescription = sanitizeInput(description);
+  
+  // Validate input after sanitization
+  if (!sanitizedDescription || sanitizedDescription.length < 10) {
+    throw new Error("Input is too short or contains invalid characters after sanitization");
+  }
+
   const API_ENDPOINT = "/api/chat/completions"; // Using Vite proxy
   const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
   
@@ -18,7 +37,7 @@ export const generatePatentDraft = async (description) => {
       },
       {
         role: "user",
-        content: `Generate comprehensive patent claims for: ${description}`
+        content: `Generate comprehensive patent claims for: ${sanitizedDescription}`
       }
     ],
     temperature: 0.3,

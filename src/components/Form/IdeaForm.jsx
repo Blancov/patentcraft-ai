@@ -9,9 +9,23 @@ const IdeaForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastSubmission, setLastSubmission] = useState(0);
+  const [charCount, setCharCount] = useState(0);
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setIdea(value);
+    setCharCount(value.length);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Client-side pattern validation
+    const invalidPattern = /[^\p{L}\p{N}\s.,;:()\-'"@/\\#%&+=*~<>^{}|_$!?]/gu;
+    if (invalidPattern.test(idea)) {
+      setError("Input contains invalid characters. Please remove special symbols except basic punctuation.");
+      return;
+    }
     
     // Track event
     logEvent('Submission', 'Generate Draft', idea.substring(0, 30));
@@ -61,16 +75,22 @@ const IdeaForm = () => {
         <h2>Describe Your Invention</h2>
         <textarea
           value={idea}
-          onChange={(e) => setIdea(e.target.value)}
+          onChange={handleInputChange}
           placeholder="Example: 'A smartphone case with integrated solar charger and battery indicator'"
           rows={5}
           disabled={isLoading}
           required
         />
+        <div className="char-counter">
+          {charCount}/2000 characters
+          {charCount >= 2000 && (
+            <span className="char-warning"> (Maximum reached)</span>
+          )}
+        </div>
         
         <button 
           type="submit" 
-          disabled={isLoading || !idea.trim()}
+          disabled={isLoading || !idea.trim() || charCount > 2000}
           className="generate-btn"
         >
           {isLoading ? (

@@ -1,0 +1,403 @@
+===== FORM COMPONENT =====
+import React, { useState } from 'react';
+import { generatePatentDraft } from '../../services/ai';
+import { supabase } from '../../services/supabase';
+import { logEvent } from '../../utils/analytics';
+
+const IdeaForm = () => {
+  const [idea, setIdea] = useState('');
+  const [draft, setDraft] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [lastSubmission, setLastSubmission] = useState(0);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Track event
+    logEvent('Submission', 'Generate Draft', idea.substring(0, 30));
+    
+    // Input validation
+    if (idea.trim().length < 20) {
+      setError("Please provide a detailed description (at least 20 characters)");
+      return;
+    }
+    
+    // Rate limiting
+    if (Date.now() - lastSubmission < 30000) {
+      setError("Please wait 30 seconds between submissions");
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Generate draft
+      const aiDraft = await generatePatentDraft(idea);
+      setDraft(aiDraft);
+      
+      // Save to database
+      const { data, error: dbError } = await supabase
+        .from('submissions')
+        .insert([{ idea, draft: aiDraft }]);
+      
+      if (dbError) {
+        console.error('Supabase error details:', dbError);
+        throw new Error(`Database save failed: ${dbError.message}`);
+      }
+      
+      console.log('Data saved successfully:', data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+      setLastSubmission(Date.now());
+    }
+  };
+
+  return (
+    <div className="idea-form">
+      <form onSubmit={handleSubmit}>
+        <h2>Describe Your Invention</h2>
+        <textarea
+          value={idea}
+          onChange={(e) => setIdea(e.target.value)}
+          placeholder="Example: 'A smartphone case with integrated solar charger and battery indicator'"
+          rows={5}
+          disabled={isLoading}
+          required
+        />
+        
+        <button 
+          type="submit" 
+          disabled={isLoading || !idea.trim()}
+          className="generate-btn"
+        >
+          {isLoading ? (
+            <>
+              <span className="spinner"></span> Generating Patent Draft...
+            </>
+          ) : 'Generate Patent Draft'}
+        </button>
+      </form>
+
+      {error && <div className="error-message">{error}</div>}
+
+      {draft && (
+        <div className="draft-preview">
+          <h3>Generated Draft:</h3>
+          <pre>{draft}</pre>
+          <button 
+            onClick={() => navigator.clipboard.writeText(draft)}
+            className="copy-btn"
+          >
+            Copy to Clipboard
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default IdeaForm;
+===== HOME PAGE =====
+import React from 'react';
+import IdeaForm from '../components/Form/IdeaForm';
+import Disclaimer from '../components/Disclaimer';
+
+const Home = () => {
+  return (
+    <>
+      <header>
+        <h1>Patent Draft Generator</h1>
+        <p>Turn your invention ideas into patent-ready drafts</p>
+      </header>
+      
+      <main>
+        <IdeaForm />
+      </main>
+      
+      <footer>
+        <Disclaimer />
+      </footer>
+    </>
+  );
+};
+
+export default Home;
+===== AI SERVICE =====
+// src/services/ai.js
+export const generatePatentDraft = async (description) => {
+  const API_ENDPOINT = "/api/chat/completions"; // Using Vite proxy
+  const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
+  
+  // Verify API key is configured
+  if (!apiKey || apiKey.trim() === "") {
+    console.error("DeepSeek API key is not configured");
+    return "⚠️ System error: API configuration missing. Please contact support.";
+  }
+
+  const payload = {
+    model: "deepseek-chat",
+    messages: [
+      {
+        role: "system",
+        content: "You are a USPTO-certified patent attorney. Generate professional patent claims in standard USPTO format with proper numbering and dependencies. Always include: 1) A main independent claim, 2) At least 3 dependent claims with specific limitations. Use formal legal language. Format: Claim 1. [Independent claim]. Claim 2. [Dependent claim referring to Claim 1]. Claim 3. [Next dependent claim]."
+      },
+      {
+        role: "user",
+        content: `Generate comprehensive patent claims for: ${description}`
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 2000,
+    top_p: 0.9
+  };
+
+  let retryCount = 0;
+  const maxRetries = 3;
+  const retryDelay = 5000; // 5 seconds between retries
+
+  while (retryCount <= maxRetries) {
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Handle rate limits and server errors
+      if (response.status === 429 || response.status >= 500) {
+        const waitTime = retryDelay * (retryCount + 1);
+        console.warn(`Retry ${retryCount+1}/${maxRetries} in ${waitTime/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        retryCount++;
+        continue;
+      }
+
+      // Handle other errors
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMsg = errorData?.error?.message || response.statusText;
+        throw new Error(`API Error ${response.status}: ${errorMsg}`);
+      }
+
+      // Process successful response
+      const data = await response.json();
+      const claims = data.choices[0]?.message?.content || "";
+      
+      if (!claims) {
+        throw new Error("Empty response from API");
+      }
+      
+      return formatPatentClaims(claims);
+      
+    } catch (error) {
+      console.error(`Attempt ${retryCount+1} failed:`, error);
+      
+      if (retryCount >= maxRetries) {
+        return `⚠️ Service Unavailable: ${error.message}. Please try again later.`;
+      }
+      
+      retryCount++;
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+  
+  return "⚠️ All attempts failed. Please try again later.";
+};
+
+// Professional patent claim formatting
+const formatPatentClaims = (text) => {
+  // Remove any markdown code blocks
+  let cleanText = text.replace(/```[\s\S]*?```/g, "");
+  
+  // Enhance claim formatting
+  return cleanText
+    .replace(/(Claim \d+\.)/g, "\n\n$1")  // Double space before claims
+    .replace(/([a-z])([A-Z])/g, "$1 $2")  // Add space between sentences
+    .replace(/(wherein\s)/gi, "\n$1")     // New line for wherein clauses
+    .replace(/(characterized in that\s)/gi, "\n$1") // New line for characterization
+    .replace(/\.\s([A-Z])/g, ".\n$1")     // New line after periods
+    .replace(/([^.])(\n)([a-z])/g, "$1 $3") // Fix broken sentences
+    .trim();
+};
+===== SUPABASE SERVICE =====
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+===== MAIN ENTRY =====
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+import './index.css';
+import { initGA, logPageView } from './utils/analytics';
+import * as Sentry from '@sentry/browser';
+
+// Initialize Sentry
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    integrations: [Sentry.browserTracingIntegration()],
+    tracesSampleRate: 1.0,
+  });
+}
+
+// Initialize Google Analytics
+initGA();
+logPageView();
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+);
+===== APP COMPONENT =====
+import { Routes, Route } from 'react-router-dom';
+import Home from './pages/Home';
+import NotFound from './pages/NotFound';
+import { generatePatentDraft } from './services/ai';
+import { useEffect, useState } from 'react';
+import './App.css';
+
+function App() {
+  const [apiTestResult, setApiTestResult] = useState(null);
+  
+  // Run API test on component mount (development only)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      const runApiTest = async () => {
+        console.log("Running DeepSeek API test...");
+        try {
+          const testDescription = "A drone with obstacle avoidance using LiDAR";
+          const result = await generatePatentDraft(testDescription);
+          
+          console.log("API Test Result:", result);
+          setApiTestResult(result);
+          
+          if (result && !result.includes("⚠️")) {
+            console.log("✅ API Test Successful");
+          } else {
+            console.error("❌ API Test Failed", result);
+          }
+        } catch (error) {
+          console.error("API Test Error:", error);
+          setApiTestResult(`Test Failed: ${error.message}`);
+        }
+      };
+      
+      runApiTest();
+    }
+  }, []);
+
+  return (
+    <div className="App">
+      {/* Development-only API test panel */}
+      {import.meta.env.DEV && apiTestResult && (
+        <div className="api-test-panel">
+          <h3>DeepSeek API Test</h3>
+          <div className="test-result">
+            <pre>{apiTestResult}</pre>
+          </div>
+          <button onClick={() => setApiTestResult(null)}>Close</button>
+        </div>
+      )}
+
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </div>
+  );
+}
+
+export default App;
+===== ANALYTICS UTILS =====
+import ReactGA from "react-ga4";
+
+export const initGA = () => {
+  ReactGA.initialize("G-R86CDSB1RY");
+};
+
+export const logPageView = () => {
+  ReactGA.send({ 
+    hitType: "pageview", 
+    page: window.location.pathname 
+  });
+};
+
+export const logEvent = (category, action, label) => {
+  ReactGA.event({
+    category,
+    action,
+    label
+  });
+};
+
+export const logPerformance = () => {
+  if (window.performance) {
+    const navTiming = performance.getEntriesByType('navigation')[0];
+    if (navTiming) {
+      ReactGA.event({
+        category: "Performance",
+        action: "Page Load",
+        value: Math.round(navTiming.duration),
+        nonInteraction: true
+      });
+    }
+  }
+};
+===== PACKAGE.JSON =====
+{
+  "name": "patent-mvp",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@huggingface/inference": "^4.1.0",
+    "@sentry/browser": "^9.33.0",
+    "@sentry/react": "^9.33.0",
+    "@supabase/supabase-js": "^2.50.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-ga4": "^2.1.0",
+    "react-router-dom": "^6.30.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.29.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.5.2",
+    "eslint": "^9.29.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.2.0",
+    "vite": "^7.0.0"
+  }
+}
+
+===== NETLIFY CONFIG =====
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
