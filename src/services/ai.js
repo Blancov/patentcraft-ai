@@ -1,47 +1,99 @@
+// src/services/ai.js
 export const generatePatentDraft = async (description) => {
-  try {
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/pszemraj/patent-generator",
-      {
-        method: "POST",
-        headers: { 
-          Authorization: `Bearer ${import.meta.env.VITE_HF_TOKEN}`,
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify({ 
-          inputs: `Generate patent claims for: ${description}`,
-          parameters: { 
-            max_length: 500,
-            return_full_text: false 
-          }
-        }),
-      }
-    );
-    
-    // Handle different response formats
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error: ${response.status} - ${errorText}`);
-    }
-    
-    const result = await response.json();
-    
-    // Handle different response structures
-    if (Array.isArray(result) && result.length > 0) {
-      // Standard response format
-      return result[0].generated_text;
-    } else if (result.generated_text) {
-      // Alternative format
-      return result.generated_text;
-    } else if (result.error) {
-      // Hugging Face error message
-      throw new Error(`Model Error: ${result.error}`);
-    } else {
-      // Fallback error
-      throw new Error("Unexpected response format");
-    }
-  } catch (error) {
-    console.error("AI generation error:", error);
-    return `AI Error: ${error.message}`;
+  const API_ENDPOINT = "/api/chat/completions"; // Using Vite proxy
+  const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
+  
+  // Verify API key is configured
+  if (!apiKey || apiKey.trim() === "") {
+    console.error("DeepSeek API key is not configured");
+    return "⚠️ System error: API configuration missing. Please contact support.";
   }
+
+  const payload = {
+    model: "deepseek-chat",
+    messages: [
+      {
+        role: "system",
+        content: "You are a USPTO-certified patent attorney. Generate professional patent claims in standard USPTO format with proper numbering and dependencies. Always include: 1) A main independent claim, 2) At least 3 dependent claims with specific limitations. Use formal legal language. Format: Claim 1. [Independent claim]. Claim 2. [Dependent claim referring to Claim 1]. Claim 3. [Next dependent claim]."
+      },
+      {
+        role: "user",
+        content: `Generate comprehensive patent claims for: ${description}`
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 2000,
+    top_p: 0.9
+  };
+
+  let retryCount = 0;
+  const maxRetries = 3;
+  const retryDelay = 5000; // 5 seconds between retries
+
+  while (retryCount <= maxRetries) {
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Handle rate limits and server errors
+      if (response.status === 429 || response.status >= 500) {
+        const waitTime = retryDelay * (retryCount + 1);
+        console.warn(`Retry ${retryCount+1}/${maxRetries} in ${waitTime/1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        retryCount++;
+        continue;
+      }
+
+      // Handle other errors
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMsg = errorData?.error?.message || response.statusText;
+        throw new Error(`API Error ${response.status}: ${errorMsg}`);
+      }
+
+      // Process successful response
+      const data = await response.json();
+      const claims = data.choices[0]?.message?.content || "";
+      
+      if (!claims) {
+        throw new Error("Empty response from API");
+      }
+      
+      return formatPatentClaims(claims);
+      
+    } catch (error) {
+      console.error(`Attempt ${retryCount+1} failed:`, error);
+      
+      if (retryCount >= maxRetries) {
+        return `⚠️ Service Unavailable: ${error.message}. Please try again later.`;
+      }
+      
+      retryCount++;
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+  }
+  
+  return "⚠️ All attempts failed. Please try again later.";
+};
+
+// Professional patent claim formatting
+const formatPatentClaims = (text) => {
+  // Remove any markdown code blocks
+  let cleanText = text.replace(/```[\s\S]*?```/g, "");
+  
+  // Enhance claim formatting
+  return cleanText
+    .replace(/(Claim \d+\.)/g, "\n\n$1")  // Double space before claims
+    .replace(/([a-z])([A-Z])/g, "$1 $2")  // Add space between sentences
+    .replace(/(wherein\s)/gi, "\n$1")     // New line for wherein clauses
+    .replace(/(characterized in that\s)/gi, "\n$1") // New line for characterization
+    .replace(/\.\s([A-Z])/g, ".\n$1")     // New line after periods
+    .replace(/([^.])(\n)([a-z])/g, "$1 $3") // Fix broken sentences
+    .trim();
 };

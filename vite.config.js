@@ -12,5 +12,19 @@ export default defineConfig({
   server: {
     open: true,
     port: 5173,
+    proxy: {
+      // Proxy API requests to avoid CORS issues
+      '/api': {
+        target: 'https://api.deepseek.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: true,
+      }
+    }
   },
+  resolve: {
+    alias: {
+      '@': '/src',
+    }
+  }
 });

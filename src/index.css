@@ -23,3 +23,42 @@
 .home-link:hover {
   background-color: #1d4ed8;
 }
+
+/* API test panel */
+.api-test-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 400px;
+  background: #fff;
+  border: 2px solid #2563eb;
+  border-radius: 8px;
+  padding: 15px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.api-test-panel h3 {
+  margin-top: 0;
+  color: #2563eb;
+}
+
+.test-result {
+  max-height: 300px;
+  overflow-y: auto;
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+.api-test-panel button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
