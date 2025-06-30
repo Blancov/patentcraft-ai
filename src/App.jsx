@@ -1,53 +1,50 @@
-import { Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import NotFound from './pages/NotFound';
-import { generatePatentDraft } from './services/ai';
-import { useEffect, useState } from 'react';
+import { logPageView } from './utils/analytics';
+import * as Sentry from '@sentry/browser';
 import './App.css';
 
 function App() {
-  const [apiTestResult, setApiTestResult] = useState(null);
+  const location = useLocation();
   
-  // Run API test on component mount (development only)
+  // Initialize analytics and focus management
   useEffect(() => {
-    if (import.meta.env.DEV) {
-      const runApiTest = async () => {
-        console.log("Running DeepSeek API test...");
-        try {
-          const testDescription = "A drone with obstacle avoidance using LiDAR";
-          const result = await generatePatentDraft(testDescription);
-          
-          console.log("API Test Result:", result);
-          setApiTestResult(result);
-          
-          if (result && !result.includes("⚠️")) {
-            console.log("✅ API Test Successful");
-          } else {
-            console.error("❌ API Test Failed", result);
-          }
-        } catch (error) {
-          console.error("API Test Error:", error);
-          setApiTestResult(`Test Failed: ${error.message}`);
-        }
-      };
-      
-      runApiTest();
+    // Initialize Sentry
+    if (import.meta.env.VITE_SENTRY_DSN) {
+      Sentry.init({
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        integrations: [Sentry.browserTracingIntegration()],
+        tracesSampleRate: 1.0,
+      });
     }
-  }, []);
+
+    // Initialize Google Analytics
+    if (import.meta.env.PROD) {
+      import('./utils/analytics').then(({ initGA }) => {
+        initGA();
+        logPageView();
+      });
+    }
+    
+    // Set focus to main content on route change
+    setTimeout(() => {
+      const main = document.querySelector('main');
+      if (main) {
+        main.setAttribute('tabindex', '-1');
+        main.focus();
+      }
+    }, 100);
+  }, [location]);
 
   return (
     <div className="App">
-      {/* Development-only API test panel */}
-      {import.meta.env.DEV && apiTestResult && (
-        <div className="api-test-panel">
-          <h3>DeepSeek API Test</h3>
-          <div className="test-result">
-            <pre>{apiTestResult}</pre>
-          </div>
-          <button onClick={() => setApiTestResult(null)}>Close</button>
-        </div>
-      )}
-
+      {/* Skip to Content Link */}
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+      
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="*" element={<NotFound />} />
