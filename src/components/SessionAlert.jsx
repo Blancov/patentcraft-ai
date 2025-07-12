@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { getGuestSession } from '../utils/GuestSession';
+import { useAuth } from '../hooks/useAuth';
+import { getGuestSession } from '../utils/guestSession.js';
 
 const SessionAlert = () => {
   const { isGuest } = useAuth();

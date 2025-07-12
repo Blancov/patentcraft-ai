@@ -1,5 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ===== OPTIMIZED DESIGN SYSTEM ===== */
 :root {
   /* Unified Theme Variables */
   --text: #f3f4f6;
@@ -47,12 +47,17 @@ body {
   font-family: var(--font-sans);
   line-height: 1.6;
   margin: 0;
+  transition: background-color 0.3s, color 0.3s;
 }
 
-.content-layer {
-  position: relative;
-  z-index: 10;
-  min-height: 100vh;
+body.light {
+  --text: #1f2937;
+  --text-light: #4b5563;
+  --bg: #f9fafb;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
 }
 
 /* ===== TYPOGRAPHY ===== */
@@ -105,6 +110,7 @@ h3 {
   border-radius: var(--radius-lg);
   padding: var(--space-6);
   box-shadow: var(--shadow);
+  transition: all 0.3s ease;
 }
 
 /* Button styles */
@@ -220,4 +226,10 @@ h3 {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ===== ACCESSIBILITY ===== */
+[tabindex="-1"]:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }

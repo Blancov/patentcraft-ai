@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import IdeaForm from '../components/Form/IdeaForm';
 import ResponsiveContainer from '../components/Layout/ResponsiveContainer';
-import { useAuth } from '../context/AuthContext';
-import FeatureCard from './components/FeatureCard';
+import { useAuth } from '../hooks/useAuth';
+import FeatureCard from '../components/FeatureCard';
 
 const Home = () => {
   const { user, loading, isGuest, startGuestSession } = useAuth();

@@ -1,8 +1,8 @@
 import { Outlet } from 'react-router-dom';
-import Navbar from './components/Navigation/Navbar';  // Fixed path
-import Footer from './components/Layout/Footer';
-import ThemeToggle from './components/ThemeToggle';   // Fixed path
-import SessionAlert from './components/SessionAlert';
+import Navbar from '../Navigation/Navbar';  // Fixed path
+import Footer from './Footer';
+import ThemeToggle from '../ThemeToggle';   // Fixed path
+import SessionAlert from '../SessionAlert';
 
 const MainLayout = () => {
   return (

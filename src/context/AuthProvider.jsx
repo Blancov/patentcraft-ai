@@ -1,13 +1,9 @@
-import { createContext, useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';  // Corrected services path
-import { getGuestSession, clearGuestSession } from './utils/guestSession'; 
+import { useState, useEffect } from 'react';
+import { AuthContext } from './AuthContext'; // Import from the new file
+import { supabase } from '../services/supabase';
+import { getGuestSession, clearGuestSession } from '../utils/guestSession';
 
-
-// Create context
-const AuthContext = createContext();
-
-// Main provider component
-function AuthProvider({ children }) {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [subscription, setSubscription] = useState(null);
@@ -15,12 +11,11 @@ function AuthProvider({ children }) {
   const [error, setError] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
 
-  // Fetch user session and profile
   useEffect(() => {
     const fetchSession = async () => {
       try {
         setLoading(true);
-        
+
         // Check for guest session first
         const guestSession = getGuestSession();
         if (guestSession.id && !user) {
@@ -33,16 +28,16 @@ function AuthProvider({ children }) {
           setLoading(false);
           return;
         }
-        
+
         // Get current session for authenticated users
-        const { data: { session }, error: sessionError } = 
+        const { data: { session }, error: sessionError } =
           await supabase.auth.getSession();
-        
+
         if (sessionError) throw sessionError;
-        
+
         setUser(session?.user || null);
         setIsGuest(false);
-        
+
         // Fetch user profile if authenticated
         if (session?.user) {
           await fetchUserProfile(session.user.id);
@@ -63,7 +58,7 @@ function AuthProvider({ children }) {
       async (event, session) => {
         setUser(session?.user || null);
         setIsGuest(false);
-        
+
         if (session?.user) {
           await fetchUserProfile(session.user.id);
           await fetchSubscription(session.user.id);
@@ -75,7 +70,8 @@ function AuthProvider({ children }) {
     );
 
     return () => subscription.unsubscribe();
-  }, [user]); // Added user to dependency array
+    // eslint-disable-next-line
+  }, []); // Only run on mount
 
   // Fetch user profile from database
   const fetchUserProfile = async (userId) => {
@@ -85,7 +81,7 @@ function AuthProvider({ children }) {
         .select('*')
         .eq('id', userId)
         .single();
-      
+
       if (error) throw error;
       setProfile(data);
     } catch (err) {
@@ -101,7 +97,7 @@ function AuthProvider({ children }) {
         .select('*')
         .eq('user_id', userId)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') throw error;
       setSubscription(data || { status: 'free', draft_count: 0 });
     } catch (err) {
@@ -118,9 +114,11 @@ function AuthProvider({ children }) {
       createdAt: session.createdAt
     });
     setIsGuest(true);
-    window.gtag('event', 'guest_session_start', {
-      event_category: 'engagement'
-    });
+    if (window.gtag) {
+      window.gtag('event', 'guest_session_start', {
+        event_category: 'engagement'
+      });
+    }
   };
 
   // User authentication methods
@@ -137,21 +135,21 @@ function AuthProvider({ children }) {
           }
         }
       });
-      
+
       if (error) throw error;
-      
+
       // Create profile record
       if (data.user) {
         await supabase
           .from('profiles')
-          .insert([{ 
-            id: data.user.id, 
+          .insert([{
+            id: data.user.id,
             email: data.user.email,
             plan: 'free',
             draft_count: 0
           }]);
       }
-      
+
       return data.user;
     } catch (err) {
       setError(err.message);
@@ -168,7 +166,7 @@ function AuthProvider({ children }) {
         email,
         password
       });
-      
+
       if (error) throw error;
       return data.user;
     } catch (err) {
@@ -216,6 +214,3 @@ function AuthProvider({ children }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-// Export component
-export { AuthProvider };
