@@ -1,5 +1,3 @@
-import React from 'react';
-
 const ResponsiveContainer = ({ children }) => {
   return (
     <div className="responsive-container">

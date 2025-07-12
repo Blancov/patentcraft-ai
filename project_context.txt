@@ -1,8 +1,8 @@
 ===== FORM COMPONENT =====
-import React, { useState } from 'react';
-import { generatePatentDraft } from '../../services/ai';
-import { supabase } from '../../services/supabase';
-import { logEvent } from '../../utils/analytics';
+import { useState } from 'react';
+import { generatePatentDraft } from './services/ai';
+import { supabase } from './services/supabase';
+import { logEvent } from './utils/analytics';
 
 const IdeaForm = () => {
   const [idea, setIdea] = useState('');

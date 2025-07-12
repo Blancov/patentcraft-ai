@@ -1,5 +1,3 @@
-import React from 'react';
-
 const Fallback = () => {
   return (
     <div style={{ padding: '20px', textAlign: 'center' }}>

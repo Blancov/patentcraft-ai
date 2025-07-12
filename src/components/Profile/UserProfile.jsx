@@ -1,62 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { getCurrentUser, updateProfile, signOut } from '../../services/supabase';
+import { useState, useEffect } from 'react';
+import { useAuth } from './components/context/AuthContext';
 
-const Profile = () => {
-  const [user, setUser] = useState(null);
-  const [email, setEmail] = useState('');
+const UserProfile = () => {
+  const { 
+    user, 
+    profile, 
+    updateProfile, 
+    signOut,
+    loading: authLoading,
+    error: authError
+  } = useAuth();
+  
   const [username, setUsername] = useState('');
   const [website, setWebsite] = useState('');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    const { data: { user } } = await getCurrentUser();
-    if (user) {
-      setUser(user);
-      setEmail(user.email);
-      setUsername(user.user_metadata.username || '');
-      setWebsite(user.user_metadata.website || '');
+    if (profile) {
+      setUsername(profile.username || '');
+      setWebsite(profile.website || '');
     }
-  };
+  }, [profile]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { error } = await updateProfile({
-      data: {
-        username,
-        website
-      }
-    });
-    
-    if (error) {
-      setMessage(`Error: ${error.message}`);
-    } else {
+    try {
+      await updateProfile({
+        data: {
+          username,
+          website
+        }
+      });
       setMessage('Profile updated successfully!');
       setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      setMessage(`Error: ${error.message}`);
     }
   };
 
   const handleSignOut = async () => {
     await signOut();
-    window.location.href = '/login';
   };
 
-  if (!user) return <div>Loading...</div>;
+  if (authLoading) return <div>Loading profile...</div>;
+  if (authError) return <div>Error: {authError}</div>;
+  if (!user) return <div>User not available</div>;
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6">Profile Management</h2>
-      {message && <div className={`mb-4 p-2 rounded ${message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{message}</div>}
+      {message && (
+        <div className={`mb-4 p-2 rounded ${
+          message.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+        }`}>
+          {message}
+        </div>
+      )}
       
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block text-gray-700 mb-2">Email</label>
           <input 
             type="email" 
-            value={email} 
+            value={user.email || ''} 
             disabled
             className="w-full p-2 border border-gray-300 rounded bg-gray-100"
           />
@@ -103,4 +109,4 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+export default UserProfile;

@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom';
-import Navbar from './components/Navigation/Navbar';  // Corrected path
+import Navbar from './components/Navigation/Navbar';  // Fixed path
 import Footer from './components/Layout/Footer';
-import ThemeToggle from './components/ThemeToggle';
+import ThemeToggle from './components/ThemeToggle';   // Fixed path
 import SessionAlert from './components/SessionAlert';
 
 const MainLayout = () => {
@@ -10,8 +10,12 @@ const MainLayout = () => {
       <Navbar />
       <SessionAlert />
       
-      <main className="flex-grow py-8">
-        <Outlet />
+      <main className="flex-grow">
+        <div className="responsive-container">
+          <div className="container-inner">
+            <Outlet />
+          </div>
+        </div>
       </main>
       
       <Footer />

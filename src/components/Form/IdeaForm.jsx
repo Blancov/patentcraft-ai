@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { generatePatentDraft } from '../../services/ai';
 import { supabase } from '../../services/supabase';
 import { logEvent } from '../../utils/analytics';
-import ProgressStepper from './ProgressStepper';
 
 const IdeaForm = () => {
   const [idea, setIdea] = useState('');
@@ -23,12 +22,10 @@ const IdeaForm = () => {
   };
 
   const nextStep = () => {
-    // Validate before moving to next step
     if (step === 1 && idea.trim().length < 20) {
       setError("Please provide a detailed description (at least 20 characters)");
       return;
     }
-    
     setError('');
     setStep(prev => Math.min(prev + 1, 3));
   };
@@ -96,27 +93,50 @@ const IdeaForm = () => {
 
   return (
     <div className="idea-form">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center bg-gray-800 p-3 rounded-full mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-primary">Patent Draft Generator</h2>
+        <p className="text-muted mt-2">Transform your idea into a professional patent application</p>
+      </div>
+      
       <ProgressStepper currentStep={step} steps={['Describe', 'Details', 'Review']} />
       
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="mt-8">
         {step === 1 && (
           <div className="form-step">
-            <h2>Describe Your Invention</h2>
-            <textarea
-              value={idea}
-              onChange={handleInputChange}
-              placeholder="Example: 'A smartphone case with integrated solar charger and battery indicator'"
-              rows={5}
-              disabled={isLoading}
-              required
-            />
-            <div className="char-counter">
-              {charCount}/2000 characters
-              {charCount >= 2000 && <span className="char-warning"> (Maximum reached)</span>}
+            <div className="form-group">
+              <label htmlFor="idea" className="block font-medium mb-2">
+                Describe Your Invention
+              </label>
+              <textarea
+                id="idea"
+                value={idea}
+                onChange={handleInputChange}
+                placeholder="Example: 'A smartphone case with integrated solar charger and battery indicator'"
+                rows={6}
+                className="form-textarea w-full"
+                disabled={isLoading}
+                required
+              />
+              <div className="char-counter">
+                {charCount}/2000 characters
+                {charCount >= 2000 && <span className="char-warning ml-2">(Maximum reached)</span>}
+              </div>
             </div>
+            
             {error && <div className="error-message">{error}</div>}
-            <div className="form-actions">
-              <button type="button" onClick={nextStep} className="btn-next">
+            
+            <div className="form-actions justify-end">
+              <button 
+                type="button" 
+                onClick={nextStep}
+                className="btn-primary"
+                disabled={idea.trim().length < 20}
+              >
                 Next: Add Details
               </button>
             </div>
@@ -125,15 +145,15 @@ const IdeaForm = () => {
         
         {step === 2 && (
           <div className="form-step">
-            <h2>Additional Details</h2>
-            
             <div className="form-group">
-              <label htmlFor="inventionType">Invention Type</label>
+              <label htmlFor="inventionType" className="block font-medium mb-2">
+                Invention Type
+              </label>
               <select
                 id="inventionType"
                 value={inventionType}
                 onChange={(e) => setInventionType(e.target.value)}
-                className="form-select"
+                className="form-select w-full"
               >
                 <option value="device">Device/Apparatus</option>
                 <option value="method">Method/Process</option>
@@ -144,34 +164,38 @@ const IdeaForm = () => {
             </div>
             
             <div className="form-group">
-              <label htmlFor="technicalField">Technical Field</label>
+              <label htmlFor="technicalField" className="block font-medium mb-2">
+                Technical Field
+              </label>
               <input
                 type="text"
                 id="technicalField"
                 value={technicalField}
                 onChange={(e) => setTechnicalField(e.target.value)}
                 placeholder="e.g., Renewable Energy, Biotechnology"
-                className="form-input"
+                className="form-input w-full"
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="keyFeatures">Key Innovative Features</label>
+              <label htmlFor="keyFeatures" className="block font-medium mb-2">
+                Key Innovative Features
+              </label>
               <textarea
                 id="keyFeatures"
                 value={keyFeatures}
                 onChange={(e) => setKeyFeatures(e.target.value)}
                 placeholder="Describe the novel aspects of your invention"
                 rows={3}
-                className="form-textarea"
+                className="form-textarea w-full"
               />
             </div>
             
-            <div className="form-actions">
-              <button type="button" onClick={prevStep} className="btn-back">
+            <div className="form-actions justify-between">
+              <button type="button" onClick={prevStep} className="btn-outline">
                 Back
               </button>
-              <button type="button" onClick={nextStep} className="btn-next">
+              <button type="button" onClick={nextStep} className="btn-primary">
                 Next: Review
               </button>
             </div>
@@ -180,33 +204,34 @@ const IdeaForm = () => {
         
         {step === 3 && (
           <div className="form-step">
-            <h2>Review and Submit</h2>
-            
-            <div className="review-section">
-              <h3>Your Invention</h3>
-              <p>{idea}</p>
+            <div className="card mb-6">
+              <h3 className="font-bold mb-2">Your Invention</h3>
+              <p className="whitespace-pre-wrap">{idea}</p>
             </div>
             
-            <div className="review-section">
-              <h3>Details</h3>
+            <div className="card mb-6">
+              <h3 className="font-bold mb-2">Details</h3>
               <p><strong>Type:</strong> {inventionType}</p>
               <p><strong>Technical Field:</strong> {technicalField || 'Not specified'}</p>
               <p><strong>Key Features:</strong> {keyFeatures || 'Not specified'}</p>
             </div>
             
-            <div className="form-actions">
-              <button type="button" onClick={prevStep} className="btn-back">
+            {error && <div className="error-message">{error}</div>}
+            
+            <div className="form-actions justify-between">
+              <button type="button" onClick={prevStep} className="btn-outline">
                 Back
               </button>
               <button 
                 type="submit" 
                 disabled={isLoading || !idea.trim() || charCount > 2000}
-                className="generate-btn"
+                className="btn-primary"
               >
                 {isLoading ? (
-                  <>
-                    <span className="spinner"></span> Generating Patent Draft...
-                  </>
+                  <span className="flex items-center justify-center">
+                    <span className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></span>
+                    Generating Patent Draft...
+                  </span>
                 ) : 'Generate Patent Draft'}
               </button>
             </div>
@@ -215,15 +240,17 @@ const IdeaForm = () => {
       </form>
 
       {draft && (
-        <div className="draft-preview">
-          <h3>Generated Draft:</h3>
+        <div className="draft-preview mt-10">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold">Generated Draft</h3>
+            <button 
+              onClick={() => navigator.clipboard.writeText(draft)}
+              className="btn-outline text-sm"
+            >
+              Copy to Clipboard
+            </button>
+          </div>
           <pre>{draft}</pre>
-          <button 
-            onClick={() => navigator.clipboard.writeText(draft)}
-            className="copy-btn"
-          >
-            Copy to Clipboard
-          </button>
         </div>
       )}
     </div>

@@ -1,5 +1,3 @@
-// src/services/ai.js
-// Add sanitization helper function
 const sanitizeInput = (text) => {
   // Allow letters, numbers, spaces, and common punctuation
   // Preserves non-English characters (Unicode)
