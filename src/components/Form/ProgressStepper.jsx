@@ -1,53 +1,110 @@
-import CenitarLogo from '../../assets/Cenitar.png';
+import React from "react";
 
-const ProgressStepper = ({ currentStep, steps }) => {
-  return (
-    <div className="progress-stepper mb-8">
-      <div className="stepper-track relative">
-        <div className="absolute top-4 left-0 right-0 h-1 bg-border z-10"></div>
-        
-        {steps.map((label, index) => {
-          const isCompleted = index < currentStep;
-          const isActive = index === currentStep;
-          
-          return (
-            <div 
-              key={index} 
-              className={`step relative z-20 flex flex-col items-center ${
-                index === 0 ? 'items-start' : index === steps.length - 1 ? 'items-end' : ''
-              }`}
-              style={{ flex: 1 }}
+const ProgressStepper = ({ currentStep, steps }) => (
+  <nav
+    className="progress-stepper"
+    aria-label="Form progress"
+    style={{
+      margin: "0 auto 2.5rem",
+      maxWidth: 480,
+      transition: "background 0.3s, color 0.3s, border 0.3s"
+    }}
+  >
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        gap: 24,
+        alignItems: "center",
+        transition: "background 0.3s, color 0.3s, border 0.3s"
+      }}
+      role="list"
+    >
+      {/* Track */}
+      <div
+        style={{
+          position: "absolute",
+          top: "25%",
+          left: 0,
+          right: 0,
+          height: 4,
+          background: "var(--border)",
+          transform: "translateY(-50%)",
+          zIndex: 1,
+          transition: "background 0.3s, color 0.3s, border 0.3s"
+        }}
+        aria-hidden="true"
+      />
+      {/* Steps */}
+      {steps.map((label, idx) => {
+        const stepNum = idx + 1;
+        const isActive = currentStep === stepNum;
+        const isCompleted = currentStep > stepNum;
+        return (
+          <div
+            key={label}
+            role="listitem"
+            style={{
+              position: "relative",
+              zIndex: 2,
+              flex: 1,
+              textAlign: "center",
+              transition: "background 0.3s, color 0.3s, border 0.3s"
+            }}
+          >
+            <div
+              tabIndex={0}
+              aria-current={isActive ? "step" : undefined}
+              style={{
+                width: 36,
+                height: 36,
+                margin: "0 auto 0.5rem",
+                borderRadius: "50%",
+                background: isActive
+                  ? "var(--primary)"
+                  : isCompleted
+                  ? "var(--success, #22c55e)"
+                  : "var(--card)",
+                border: `2px solid ${
+                  isActive
+                    ? "var(--primary)"
+                    : isCompleted
+                    ? "var(--success, #22c55e)"
+                    : "var(--border)"
+                }`,
+                color: isActive || isCompleted ? "#fff" : "var(--text)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "1.1rem",
+                outline: isActive ? "2px solid var(--primary)" : "none",
+                boxShadow: isActive ? "0 0 0 2px var(--primary-light)" : "none",
+                transition: "background 0.3s, border 0.3s, color 0.3s, outline 0.3s, box-shadow 0.3s"
+              }}
             >
-              <div className={`step-indicator w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-all ${
-                isActive 
-                  ? 'bg-primary border-primary text-white shadow-lg scale-110' 
-                  : isCompleted 
-                    ? 'bg-success border-success' 
-                    : 'bg-card border-border'
-              }`}>
-                {isCompleted ? (
-                  <img 
-                    src={CenitarLogo} 
-                    alt="Complete" 
-                    className="w-5 h-5 object-contain" 
-                  />
-                ) : (
-                  <span className="step-number font-medium">
-                    {index + 1}
-                  </span>
-                )}
-              </div>
-              <span className={`step-label text-sm text-center max-w-[100px] ${
-                isActive ? 'text-primary font-medium' : 'text-text-light'
-              }`}>
-                {label}
-              </span>
+              {isCompleted ? (
+                <span style={{ fontSize: 20, lineHeight: 1 }}>✓</span>
+              ) : (
+                stepNum
+              )}
             </div>
-          );
-        })}
-      </div>
+            <div
+              style={{
+                fontSize: "1rem",
+                color: isActive ? "var(--primary)" : "var(--text-light)",
+                fontWeight: isActive ? 600 : 400,
+                marginTop: 2,
+                transition: "color 0.3s"
+              }}
+            >
+              {label}
+            </div>
+          </div>
+        );
+      })}
     </div>
-  );
-};
+  </nav>
+);
 
 export default ProgressStepper;

@@ -1,15 +1,12 @@
-import { useState, useEffect } from 'react';
-import { ThemeContext } from '../context/ThemeContext';
+import { useEffect, useState } from 'react';
+import { ThemeContext } from './ThemeContext';
 
 const ThemeProvider = ({ children }) => {
-  const [darkMode, setDarkMode] = useState(false);
-
-  useEffect(() => {
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const savedTheme = localStorage.getItem('theme');
-    
-    setDarkMode(savedTheme ? savedTheme === 'dark' : systemPrefersDark);
-  }, []);
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored) return stored === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
 
   useEffect(() => {
     if (darkMode) {
@@ -21,7 +18,7 @@ const ThemeProvider = ({ children }) => {
     }
   }, [darkMode]);
 
-  const toggleTheme = () => setDarkMode(!darkMode);
+  const toggleTheme = () => setDarkMode((v) => !v);
 
   return (
     <ThemeContext.Provider value={{ darkMode, toggleTheme }}>

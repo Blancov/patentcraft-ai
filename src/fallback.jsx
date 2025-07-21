@@ -1,9 +1,11 @@
 const Fallback = () => {
   return (
-    <div style={{ padding: '20px', textAlign: 'center' }}>
-      <h1>Page Not Found</h1>
-      <p>The page you're looking for doesn't exist.</p>
-      <a href="/">Go to Home</a>
+    <div className="fallback-container">
+      <h1>404 - Page Not Found</h1>
+      <p>
+        Sorry, the page you are looking for does not exist.<br />
+        Please check the URL or return to the homepage.
+      </p>
     </div>
   );
 };

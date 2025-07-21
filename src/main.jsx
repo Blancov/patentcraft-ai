@@ -1,23 +1,13 @@
-import { Outlet } from 'react-router-dom';
-import Navbar from './components/Navigation/Navbar';  // Corrected path
-import Footer from './components/Layout/Footer';
-import ThemeToggle from './components/ThemeToggle';
-import SessionAlert from './components/SessionAlert';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+import './index.css';
 
-const MainLayout = () => {
-  return (
-    <div className="flex flex-col min-h-screen bg-bg text-text">
-      <Navbar />
-      <SessionAlert />
-      
-      <main className="flex-grow py-8">
-        <Outlet />
-      </main>
-      
-      <Footer />
-      <ThemeToggle className="fixed bottom-4 right-4 z-50" />
-    </div>
-  );
-};
-
-export default MainLayout;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+);

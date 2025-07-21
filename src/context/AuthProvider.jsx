@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AuthContext } from './AuthContext'; // Import from the new file
+import { AuthContext } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { getGuestSession, clearGuestSession } from '../utils/guestSession';
 
@@ -114,7 +114,7 @@ export function AuthProvider({ children }) {
       createdAt: session.createdAt
     });
     setIsGuest(true);
-    if (window.gtag) {
+    if (typeof window.gtag === 'function') {
       window.gtag('event', 'guest_session_start', {
         event_category: 'engagement'
       });
@@ -214,3 +214,4 @@ export function AuthProvider({ children }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+export default AuthProvider;

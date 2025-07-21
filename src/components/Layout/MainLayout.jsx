@@ -1,25 +1,19 @@
 import { Outlet } from 'react-router-dom';
-import Navbar from '../Navigation/Navbar';  // Fixed path
+import Navbar from '../Navigation/Navbar';
 import Footer from './Footer';
-import ThemeToggle from '../ThemeToggle';   // Fixed path
 import SessionAlert from '../SessionAlert';
 
 const MainLayout = () => {
   return (
-    <div className="flex flex-col min-h-screen bg-bg text-text">
+    <div className="min-h-screen flex flex-col bg-bg text-text">
       <Navbar />
       <SessionAlert />
-      
-      <main className="flex-grow">
+      <main className="flex-grow w-full py-6">
         <div className="responsive-container">
-          <div className="container-inner">
-            <Outlet />
-          </div>
+          <Outlet />
         </div>
       </main>
-      
       <Footer />
-      <ThemeToggle className="fixed bottom-4 right-4 z-50" />
     </div>
   );
 };
