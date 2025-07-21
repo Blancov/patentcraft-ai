@@ -82,7 +82,7 @@ const Navbar = () => {
       style={{
         background: "var(--navbar-bg)",
         color: "var(--text)",
-        position: "stickyfixed",
+        position: "fixed",
         top: 0,
         zIndex: 40,
         width: "100%",

@@ -23,9 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-dist
-node_modules
+
 .env.local
-.DS_Store
 # Local Netlify folder
 .netlify
+state.json
