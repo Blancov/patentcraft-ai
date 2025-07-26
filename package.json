@@ -2,19 +2,25 @@
   "name": "patent-mvp",
   "private": true,
   "version": "0.0.0",
+  "description": "AI-powered patent draft generator.",
+  "author": "Eduardo O. Blanco",
+  "license": "Proprietary",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "netlify-dev": "netlify dev",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",
-    "@huggingface/inference": "^4.1.0",
     "@sentry/browser": "^9.33.0",
     "@sentry/react": "^9.35.0",
     "@supabase/supabase-js": "^2.50.2",
+    "crypto-js": "^4.2.0",
+    "dompurify": "^3.2.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-ga4": "^2.1.0",
@@ -34,5 +40,30 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.11",
     "vite": "^7.0.0"
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "node": true
+    },
+    "parserOptions": {
+      "ecmaVersion": "latest",
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-undef": "warn",
+      "no-console": "warn"
+    },
+    "overrides": [
+      {
+        "files": ["netlify/functions/*.js"],
+        "env": {
+          "node": true
+        },
+        "rules": {
+          "no-undef": "off"
+        }
+      }
+    ]
   }
 }

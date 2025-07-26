@@ -1,4 +1,3 @@
-import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 
@@ -36,18 +35,12 @@ const features = [
 ];
 
 const Home = () => {
-  const { isGuest, startGuestSession, loading } = useAuth();
+  const { startGuestSession, loading } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (isGuest) {
-      navigate("/draft");
-    }
-  }, [isGuest, navigate]);
 
   const handleGuestStart = () => {
     startGuestSession();
-    // navigation handled by useEffect above
+    navigate("/draft");
   };
 
   const handleCreateAccount = () => {
@@ -77,7 +70,7 @@ const Home = () => {
             Create Account
           </button>
           <button
-            className="btn-outline px-8 py-3 text-lg rounded-full"
+            className="btn-primary px-8 py-3 text-lg rounded-full"
             onClick={handleGuestStart}
           >
             Try as Guest

@@ -4,5 +4,6 @@ export type PatentDraft = {
   description: string;
   created_at: string;
   user_id: string;
-  // Add other fields as needed
+  claims?: string;
+  status?: string;
 };

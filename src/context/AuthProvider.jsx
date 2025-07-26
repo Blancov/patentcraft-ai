@@ -1,217 +1,155 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../services/supabase';
 import { getGuestSession, clearGuestSession } from '../utils/guestSession';
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [subscription, setSubscription] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isGuest, setIsGuest] = useState(false);
+  const [authState, setAuthState] = useState({
+    user: null,
+    profile: null,
+    subscription: null,
+    loading: true,
+    error: null,
+    isGuest: false
+  });
+
+  const fetchUserData = useCallback(async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*, subscriptions(*)')
+        .eq('id', userId)
+        .single();
+      
+      if (error) throw error;
+      
+      setAuthState(prev => ({
+        ...prev,
+        profile: data,
+        subscription: data.subscriptions || { status: 'free', draft_count: 0 },
+        loading: false
+      }));
+    } catch (err) {
+      setAuthState(prev => ({
+        ...prev,
+        error: `Data error: ${err.message}`,
+        loading: false
+      }));
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchSession = async () => {
+    const initAuth = async () => {
       try {
-        setLoading(true);
+        setAuthState(prev => ({ ...prev, loading: true }));
 
-        // Check for guest session first
+        // Check guest session
         const guestSession = getGuestSession();
-        if (guestSession.id && !user) {
-          setUser({
-            id: guestSession.id,
-            isGuest: true,
-            createdAt: guestSession.createdAt
+        if (guestSession.id && !authState.user) {
+          setAuthState({
+            user: {
+              id: guestSession.id,
+              isGuest: true,
+              createdAt: guestSession.createdAt
+            },
+            profile: null,
+            subscription: null,
+            loading: false,
+            error: null,
+            isGuest: true
           });
-          setIsGuest(true);
-          setLoading(false);
           return;
         }
 
-        // Get current session for authenticated users
-        const { data: { session }, error: sessionError } =
-          await supabase.auth.getSession();
+        // Get authenticated session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
 
-        if (sessionError) throw sessionError;
-
-        setUser(session?.user || null);
-        setIsGuest(false);
-
-        // Fetch user profile if authenticated
         if (session?.user) {
-          await fetchUserProfile(session.user.id);
-          await fetchSubscription(session.user.id);
+          setAuthState(prev => ({
+            ...prev,
+            user: session.user,
+            isGuest: false
+          }));
+          await fetchUserData(session.user.id);
+        } else {
+          setAuthState(prev => ({ ...prev, loading: false }));
         }
       } catch (err) {
-        setError(err.message);
-        console.error('Session error:', err);
-      } finally {
-        setLoading(false);
+        setAuthState(prev => ({
+          ...prev,
+          error: err.message,
+          loading: false
+        }));
       }
     };
 
-    fetchSession();
+    initAuth();
 
-    // Subscribe to auth state changes
+    // Auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user || null);
-        setIsGuest(false);
-
         if (session?.user) {
-          await fetchUserProfile(session.user.id);
-          await fetchSubscription(session.user.id);
+          setAuthState(prev => ({
+            ...prev,
+            user: session.user,
+            isGuest: false
+          }));
+          await fetchUserData(session.user.id);
         } else {
-          setProfile(null);
-          setSubscription(null);
+          setAuthState({
+            user: null,
+            profile: null,
+            subscription: null,
+            loading: false,
+            error: null,
+            isGuest: false
+          });
         }
       }
     );
 
     return () => subscription.unsubscribe();
-    // eslint-disable-next-line
-  }, []); // Only run on mount
+  }, [fetchUserData]);
 
-  // Fetch user profile from database
-  const fetchUserProfile = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (err) {
-      setError(`Profile error: ${err.message}`);
-    }
-  };
-
-  // Fetch subscription status
-  const fetchSubscription = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      setSubscription(data || { status: 'free', draft_count: 0 });
-    } catch (err) {
-      setError(`Subscription error: ${err.message}`);
-    }
-  };
-
-  // Start guest session
   const startGuestSession = () => {
     const session = getGuestSession();
-    setUser({
-      id: session.id,
-      isGuest: true,
-      createdAt: session.createdAt
+    setAuthState({
+      user: {
+        id: session.id,
+        isGuest: true,
+        createdAt: session.createdAt
+      },
+      profile: null,
+      subscription: null,
+      loading: false,
+      error: null,
+      isGuest: true
     });
-    setIsGuest(true);
-    if (typeof window.gtag === 'function') {
-      window.gtag('event', 'guest_session_start', {
-        event_category: 'engagement'
-      });
-    }
-  };
-
-  // User authentication methods
-  const signUp = async (email, password, metadata = {}) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            ...metadata,
-            created_at: new Date().toISOString()
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      // Create profile record
-      if (data.user) {
-        await supabase
-          .from('profiles')
-          .insert([{
-            id: data.user.id,
-            email: data.user.email,
-            plan: 'free',
-            draft_count: 0
-          }]);
-      }
-
-      return data.user;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signIn = async (email, password) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
-      return data.user;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
   };
 
   const signOut = async () => {
-    try {
-      setLoading(true);
-      if (user?.isGuest) {
-        clearGuestSession();
-      } else {
-        await supabase.auth.signOut();
-      }
-      setUser(null);
-      setProfile(null);
-      setSubscription(null);
-      setIsGuest(false);
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setLoading(false);
+    if (authState.user?.isGuest) {
+      clearGuestSession();
+    } else {
+      await supabase.auth.signOut();
     }
+    setAuthState({
+      user: null,
+      profile: null,
+      subscription: null,
+      loading: false,
+      error: null,
+      isGuest: false
+    });
   };
 
-  // Value to provide to consumers
   const value = {
-    user,
-    profile,
-    subscription,
-    isGuest,
-    loading,
-    error,
+    ...authState,
     startGuestSession,
-    signUp,
-    signIn,
     signOut,
-    resetError: () => setError(null)
+    resetError: () => setAuthState(prev => ({ ...prev, error: null }))
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-export default AuthProvider;
