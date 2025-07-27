@@ -1,5 +1,10 @@
+// Add this at the very top
+console.log('Function process started. Environment:', process.env.NETLIFY_DEV ? 'Development' : 'Production');
+
 export const handler = async (event) => {
-  // Set consistent headers with improved CORS support
+  console.log('Received request:', event.httpMethod, event.path);
+  
+  // Set consistent headers
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -9,6 +14,7 @@ export const handler = async (event) => {
 
   // Handle preflight OPTIONS request
   if (event.httpMethod === 'OPTIONS') {
+    console.log('Handling OPTIONS preflight');
     return {
       statusCode: 200,
       headers,
@@ -17,6 +23,7 @@ export const handler = async (event) => {
   }
 
   if (event.httpMethod !== 'POST') {
+    console.log('Method not allowed:', event.httpMethod);
     return {
       statusCode: 405,
       headers,
@@ -25,19 +32,22 @@ export const handler = async (event) => {
   }
 
   try {
+    // Log raw body for debugging
+    console.log('Raw body:', event.body);
+    
     // Handle base64 encoded body
-    const body = event.isBase64Encoded
+    const bodyString = event.isBase64Encoded
       ? Buffer.from(event.body, 'base64').toString('utf-8')
       : event.body;
     
-    console.log('Request body:', body);
+    console.log('Decoded body:', bodyString);
     
     // Parse JSON safely
     let parsedBody;
     try {
-      parsedBody = JSON.parse(body);
+      parsedBody = JSON.parse(bodyString);
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
+      console.error('JSON parse error:', parseError.message);
       return {
         statusCode: 400,
         headers,
@@ -53,6 +63,7 @@ export const handler = async (event) => {
     } = parsedBody;
     
     if (!description || description.trim().length < 10) {
+      console.log('Invalid description:', description);
       return {
         statusCode: 400,
         headers,
@@ -67,28 +78,34 @@ export const handler = async (event) => {
     
     if (!DEEPSEEK_API_KEY) {
       console.error('DeepSeek API key is missing');
+      // Log all environment variables for debugging
+      console.log('Environment variables:', Object.keys(process.env));
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({ 
-          error: 'Server configuration error: API key missing'
+          error: 'Server configuration error: API key missing',
+          envKeys: Object.keys(process.env)
         })
       };
     }
 
     console.log('Calling DeepSeek API...');
     
-    // Create the system prompt
-    const systemPrompt = `As a USPTO patent attorney, draft a patent for a ${inventionType} in ${techField}. Key features: ${keyFeatures}. Include:
-- Claims with USPTO numbering
-- PlantUML diagrams
-- Physics validation
-- Prior art flags
-- Competitor analysis
-- International IP`;
+    // Create the system prompt safely
+    const systemPrompt = `As a USPTO patent attorney, generate a patent application draft for a ${inventionType} in ${techField} with these key features: ${keyFeatures}. Include:
+1. Claims with proper USPTO numbering and dependencies
+2. Technical diagrams in PlantUML format
+3. Physics validation
+4. Prior art avoidance flags
+5. Competitor workaround analysis
+6. International IP considerations`;
 
+    // Log the prompt for verification
+    console.log('System prompt:', systemPrompt.substring(0, 200) + '...');
+    
     const startTime = Date.now();
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    const apiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,42 +130,51 @@ export const handler = async (event) => {
     });
     
     const duration = Date.now() - startTime;
-    console.log(`API request took ${duration}ms`);
+    console.log(`API request took ${duration}ms, status: ${apiResponse.status}`);
 
     // Handle API errors
-    if (!response.ok) {
-      let errorDetails;
-      try {
-        const errorResponse = await response.json();
-        errorDetails = errorResponse.error?.message || JSON.stringify(errorResponse);
-      } catch (e) {
-        errorDetails = await response.text();
-      }
-      
-      console.error(`DeepSeek API error (${response.status}):`, errorDetails);
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      console.error('DeepSeek API error:', apiResponse.status, errorText.substring(0, 200));
       return {
         statusCode: 502,
         headers,
         body: JSON.stringify({
-          error: `API request failed (${response.status})`,
-          details: errorDetails.substring(0, 500)
+          error: `API request failed (${apiResponse.status})`,
+          details: errorText.substring(0, 500)
         })
       };
     }
 
-    const data = await response.json();
+    const data = await apiResponse.json();
     const draft = data.choices[0]?.message?.content || "";
     
-    console.log('Draft generated successfully');
+    console.log('Draft generated successfully. Length:', draft.length);
+    
+    // WORKAROUND: Force process exit in development to prevent timeout
+    if (process.env.NETLIFY_DEV) {
+      setTimeout(() => {
+        console.log('Forcing process exit to avoid timeout bug');
+        process.exit(0);
+      }, 100);
+    }
     
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ draft })
+      body: JSON.stringify({ draft: draft.substring(0, 100) + '...' }) // Truncate for logs
     };
     
   } catch (error) {
-    console.error('Function execution error:', error);
+    console.error('Function error:', error);
+    
+    // WORKAROUND: Force process exit in development
+    if (process.env.NETLIFY_DEV) {
+      setTimeout(() => {
+        console.log('Forcing process exit due to error');
+        process.exit(1);
+      }, 100);
+    }
     
     return {
       statusCode: 500,

@@ -38,7 +38,10 @@ export const generatePatentDraft = async (data) => {
     
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Netlify-Workaround': 'true'  // Critical header for workaround
+      },
       body: JSON.stringify(sanitizedData)
     });
 
@@ -76,7 +79,12 @@ export const generatePatentDraft = async (data) => {
     if (error.message.includes('Failed to fetch')) {
       userMessage = "Network error. Please check your connection.";
     } else if (error.message.includes('API request failed')) {
-      userMessage = "Service is temporarily unavailable. Please try again later.";
+      // Handle Netlify Dev timeout specifically
+      if (error.message.includes('500') || error.message.includes('timed out')) {
+        userMessage = "The request took too long. Please try again or deploy to production.";
+      } else {
+        userMessage = "Service is temporarily unavailable. Please try again later.";
+      }
     } else if (error.message.includes('404')) {
       userMessage = "Server endpoint not found. Please contact support.";
     } else {

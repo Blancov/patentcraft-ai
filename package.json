@@ -8,11 +8,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "netlify-dev": "netlify dev",
+    "netlify-dev": "env-cmd -f .env.local netlify dev --inspect",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"No tests specified\" && exit 0",
+    "debug": "NODE_OPTIONS='--inspect' netlify dev --inspect"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",
@@ -21,6 +22,7 @@
     "@supabase/supabase-js": "^2.50.2",
     "crypto-js": "^4.2.0",
     "dompurify": "^3.2.6",
+    "env-cmd": "^10.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-ga4": "^2.1.0",
@@ -56,7 +58,9 @@
     },
     "overrides": [
       {
-        "files": ["netlify/functions/*.js"],
+        "files": [
+          "netlify/functions/*.js"
+        ],
         "env": {
           "node": true
         },

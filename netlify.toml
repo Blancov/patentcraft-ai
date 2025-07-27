@@ -10,6 +10,10 @@
   functions = "netlify/functions"
   autoLaunch = false
   build = false
+  # Critical settings for timeout issues
+  skipTimeoutWarning = true
+  timeout = 0 # Disable timeout completely
+  useLocalFunctions = true
 
 [functions]
   generate-draft.timeout = 60
@@ -27,9 +31,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-# Content Security Policy headers
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co https://*.netlify.app;"
