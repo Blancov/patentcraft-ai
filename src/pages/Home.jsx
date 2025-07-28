@@ -58,11 +58,11 @@ const Home = () => {
   return (
     <main className="home-page">
       <section className="hero-section text-center py-16">
-        <h1 className="text-4xl font-bold mb-4 text-primary">PatentCraft AI</h1>
-        <p className="text-lg text-gray-600 mb-8">
+        <h1 className="text-4xl font-bold mb-8 text-primary">PatentCraft AI</h1>
+        <p className="text-lg text-gray-600 mb-12 ">
           The fastest way to draft, analyze, and export professional patent applications.
         </p>
-        <div className="hero-actions flex flex-col sm:flex-row justify-center gap-4 mb-8">
+        <div className="hero-actions flex flex-col sm:flex-row justify-center gap-6 mb-12">
           <button
             className="btn-primary px-8 py-3 text-lg rounded-full"
             onClick={handleCreateAccount}

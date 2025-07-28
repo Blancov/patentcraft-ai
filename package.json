@@ -8,12 +8,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "netlify-dev": "env-cmd -f .env.local netlify dev --inspect",
+    "netlify-dev": "env-cmd -f .env.local netlify dev",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "echo \"No tests specified\" && exit 0",
-    "debug": "NODE_OPTIONS='--inspect' netlify dev --inspect"
+    "debug": "NODE_OPTIONS='--inspect' netlify dev",
+    "dev:netlify": "cross-env NETLIFY_FUNCTIONS_TIMEOUT=60 npm run netlify-dev",
+    "dev:debug": "cross-env NODE_OPTIONS='--inspect' NETLIFY_FUNCTIONS_TIMEOUT=60 netlify dev"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.6",
@@ -35,6 +37,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^10.0.0",
     "eslint": "^9.29.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",

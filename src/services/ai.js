@@ -9,18 +9,15 @@ const sanitizeInput = (text) => {
     .substring(0, 2000);
 };
 
-// Helper to get API endpoint based on environment
+// Helper to get API endpoint
 const getApiEndpoint = () => {
   if (import.meta.env.MODE === 'development') {
-    // For Netlify CLI development
     return 'http://localhost:8888/.netlify/functions/generate-draft';
   }
-  // For production
   return '/.netlify/functions/generate-draft';
 };
 
 export const generatePatentDraft = async (data) => {
-  // Sanitize all inputs
   const sanitizedData = {
     description: sanitizeInput(data.description),
     inventionType: sanitizeInput(data.inventionType) || "device",
@@ -29,7 +26,7 @@ export const generatePatentDraft = async (data) => {
   };
   
   if (!sanitizedData.description || sanitizedData.description.length < 10) {
-    throw new Error("Please provide a more detailed description (at least 10 characters)");
+    throw new Error("Please provide a detailed description (at least 10 characters)");
   }
 
   try {
@@ -39,33 +36,23 @@ export const generatePatentDraft = async (data) => {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'X-Netlify-Workaround': 'true'  // Critical header for workaround
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(sanitizedData)
     });
 
-    // Handle HTTP errors
     if (!response.ok) {
       let errorDetails = `Status: ${response.status}`;
       try {
-        // Try to get error details from response
         const errorData = await response.json();
         errorDetails += `, Message: ${errorData.error || errorData.message || 'No details'}`;
       } catch (e) {
-        // If JSON parsing fails, get text response
-        try {
-          const text = await response.text();
-          errorDetails += `, Response: ${text.substring(0, 100)}`;
-        } catch (textError) {
-          errorDetails += ', Failed to read response body';
-        }
+        const text = await response.text();
+        errorDetails += `, Response: ${text.substring(0, 100)}`;
       }
-      
       throw new Error(`API request failed: ${errorDetails}`);
     }
 
-    // Parse successful response
     const { draft } = await response.json();
     return DOMPurify.sanitize(draft, {
       ALLOWED_TAGS: ['p', 'br', 'ol', 'ul', 'li'],
@@ -74,17 +61,13 @@ export const generatePatentDraft = async (data) => {
   } catch (error) {
     console.error('Draft generation error:', error);
     
-    // Create more specific error messages
     let userMessage;
     if (error.message.includes('Failed to fetch')) {
       userMessage = "Network error. Please check your connection.";
-    } else if (error.message.includes('API request failed')) {
-      // Handle Netlify Dev timeout specifically
-      if (error.message.includes('500') || error.message.includes('timed out')) {
-        userMessage = "The request took too long. Please try again or deploy to production.";
-      } else {
-        userMessage = "Service is temporarily unavailable. Please try again later.";
-      }
+    } else if (error.message.includes('504')) {
+      userMessage = "The request timed out. Please try again with a shorter description.";
+    } else if (error.message.includes('500') || error.message.includes('timed out')) {
+      userMessage = "The request took too long. Please try again or simplify your description.";
     } else if (error.message.includes('404')) {
       userMessage = "Server endpoint not found. Please contact support.";
     } else {

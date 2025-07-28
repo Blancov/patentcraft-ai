@@ -10,23 +10,21 @@
   functions = "netlify/functions"
   autoLaunch = false
   build = false
-  # Critical settings for timeout issues
   skipTimeoutWarning = true
-  timeout = 0 # Disable timeout completely
   useLocalFunctions = true
+  timeout = 60
+  commandTimeout = 60
 
 [functions]
-  generate-draft.timeout = 60
+  generate-draft.timeout = 60 
   node_bundler = "esbuild"
 
-# API redirects
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
   force = true
 
-# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"

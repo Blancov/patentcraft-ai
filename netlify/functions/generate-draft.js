@@ -1,10 +1,25 @@
-// Add this at the very top
-console.log('Function process started. Environment:', process.env.NETLIFY_DEV ? 'Development' : 'Production');
+// Initialize Supabase (if used)
+const initSupabase = () => {
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+    const { createClient } = require('@supabase/supabase-js');
+    return createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_KEY,
+      { persistSession: false }
+    );
+  }
+  return null;
+};
 
-export const handler = async (event) => {
-  console.log('Received request:', event.httpMethod, event.path);
-  
-  // Set consistent headers
+const supabase = initSupabase();
+
+console.log("Function process started. Environment:", process.env.NETLIFY_DEV ? "Development" : "Production");
+
+export const handler = async (event, context) => {
+  context.callbackWaitsForEmptyEventLoop = false;
+  console.log("Handler execution started");
+  console.time("HandlerExecution");
+
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -12,130 +27,97 @@ export const handler = async (event) => {
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
-  // Handle preflight OPTIONS request
+  // Always respond to OPTIONS for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight');
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ message: 'CORS preflight successful' })
-    };
+    console.timeEnd("HandlerExecution");
+    return { statusCode: 200, headers, body: JSON.stringify({ message: 'CORS preflight successful' }) };
   }
 
   if (event.httpMethod !== 'POST') {
-    console.log('Method not allowed:', event.httpMethod);
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method Not Allowed' })
-    };
+    console.timeEnd("HandlerExecution");
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
   try {
-    // Log raw body for debugging
-    console.log('Raw body:', event.body);
-    
-    // Handle base64 encoded body
+    // Parse request body
     const bodyString = event.isBase64Encoded
       ? Buffer.from(event.body, 'base64').toString('utf-8')
       : event.body;
-    
-    console.log('Decoded body:', bodyString);
-    
-    // Parse JSON safely
-    let parsedBody;
-    try {
-      parsedBody = JSON.parse(bodyString);
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError.message);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Invalid JSON format' })
-      };
-    }
-    
-    const { 
-      description, 
-      inventionType = "device", 
-      techField = "Technology Field", 
-      keyFeatures = "Key features not specified" 
+
+    const parsedBody = JSON.parse(bodyString);
+
+    const {
+      description,
+      inventionType = "device",
+      techField = "Technology Field",
+      keyFeatures = "Key features not specified"
     } = parsedBody;
-    
+
     if (!description || description.trim().length < 10) {
-      console.log('Invalid description:', description);
+      console.timeEnd("HandlerExecution");
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ 
-          error: 'Description is required and must be at least 10 characters'
-        })
+        body: JSON.stringify({ error: 'Description must be at least 10 characters' })
       };
     }
 
-    // Access environment variable
+    // API key check
     const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-    
     if (!DEEPSEEK_API_KEY) {
-      console.error('DeepSeek API key is missing');
-      // Log all environment variables for debugging
-      console.log('Environment variables:', Object.keys(process.env));
+      console.timeEnd("HandlerExecution");
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ 
-          error: 'Server configuration error: API key missing',
-          envKeys: Object.keys(process.env)
-        })
+        body: JSON.stringify({ error: 'Server configuration error: API key missing' })
       };
     }
 
-    console.log('Calling DeepSeek API...');
-    
-    // Create the system prompt safely
-    const systemPrompt = `As a USPTO patent attorney, generate a patent application draft for a ${inventionType} in ${techField} with these key features: ${keyFeatures}. Include:
-1. Claims with proper USPTO numbering and dependencies
-2. Technical diagrams in PlantUML format
+    // System prompt
+    const systemPrompt = `As a USPTO patent attorney, generate a patent application draft for a ${inventionType} in ${techField}. Key features: ${keyFeatures}. Include:
+1. Claims with USPTO numbering
+2. Technical diagrams
 3. Physics validation
-4. Prior art avoidance flags
-5. Competitor workaround analysis
-6. International IP considerations`;
+4. Prior art analysis
+5. International IP considerations`;
 
-    // Log the prompt for verification
-    console.log('System prompt:', systemPrompt.substring(0, 200) + '...');
-    
-    const startTime = Date.now();
-    const apiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: `Generate patent draft for: ${description.substring(0, 1000)}`
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-        top_p: 0.9
-      })
-    });
-    
-    const duration = Date.now() - startTime;
-    console.log(`API request took ${duration}ms, status: ${apiResponse.status}`);
+    // API call with timeout (10 seconds)
+    const apiTimeout = 10000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), apiTimeout);
 
-    // Handle API errors
+    console.log("Calling DeepSeek API...");
+    console.time("APICall");
+
+    let apiResponse;
+    try {
+      apiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+          'Connection': 'close'
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: description.substring(0, 1000) }
+          ],
+          temperature: 0.3,
+          max_tokens: 2000,
+          top_p: 0.9
+        }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+      console.timeEnd("APICall");
+    }
+
     if (!apiResponse.ok) {
       const errorText = await apiResponse.text();
-      console.error('DeepSeek API error:', apiResponse.status, errorText.substring(0, 200));
+      console.timeEnd("HandlerExecution");
       return {
         statusCode: 502,
         headers,
@@ -148,38 +130,44 @@ export const handler = async (event) => {
 
     const data = await apiResponse.json();
     const draft = data.choices[0]?.message?.content || "";
-    
-    console.log('Draft generated successfully. Length:', draft.length);
-    
-    // WORKAROUND: Force process exit in development to prevent timeout
-    if (process.env.NETLIFY_DEV) {
-      setTimeout(() => {
-        console.log('Forcing process exit to avoid timeout bug');
-        process.exit(0);
-      }, 100);
+
+    // Fire-and-forget Supabase insert (if configured)
+    if (supabase) {
+      supabase.from('submissions')
+        .insert({
+          description: description.substring(0, 500),
+          draft: draft.substring(0, 1000),
+          created_at: new Date().toISOString()
+        })
+        .then(() => console.log("Supabase insertion completed"))
+        .catch(e => console.error('Supabase error:', e.message));
     }
-    
+
+    console.timeEnd("HandlerExecution");
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ draft: draft.substring(0, 100) + '...' }) // Truncate for logs
+      body: JSON.stringify({ draft })
     };
-    
+
   } catch (error) {
-    console.error('Function error:', error);
-    
-    // WORKAROUND: Force process exit in development
-    if (process.env.NETLIFY_DEV) {
-      setTimeout(() => {
-        console.log('Forcing process exit due to error');
-        process.exit(1);
-      }, 100);
+    if (error.name === 'AbortError') {
+      console.timeEnd("HandlerExecution");
+      return {
+        statusCode: 504,
+        headers,
+        body: JSON.stringify({
+          error: 'API request timed out',
+          message: 'The DeepSeek API did not respond in time'
+        })
+      };
     }
-    
+    console.error('Handler error:', error);
+    console.timeEnd("HandlerExecution");
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         error: 'Internal server error',
         message: error.message
       })
