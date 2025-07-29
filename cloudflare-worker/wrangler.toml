@@ -7,3 +7,4 @@ DEEPSEEK_API_KEY = "@deepseek_api_key"
 
 [env.production]
 workers_dev = true
+vars = { DEEPSEEK_API_KEY = "@deepseek_api_key" }
