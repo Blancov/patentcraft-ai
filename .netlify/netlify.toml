@@ -1,0 +1,82 @@
+functionsDirectory = "/Users/blancov/Desktop/patent-mvp/netlify/functions"
+functionsDirectoryOrigin = "config-v1"
+redirectsOrigin = "config"
+plugins = []
+headers = []
+
+[build]
+publish = "/Users/blancov/Desktop/patent-mvp/dist"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "npm run build"
+functions = "/Users/blancov/Desktop/patent-mvp/netlify/functions"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[dev]
+framework = "vite"
+targetPort = 5173.0
+port = 8888.0
+functions = "netlify/functions"
+autoLaunch = false
+build = false
+skipTimeoutWarning = true
+useLocalFunctions = true
+timeout = 60.0
+commandTimeout = 60.0
+
+[functions]
+
+[functions.generate-draft]
+timeout = 10.0
+
+[functions."*"]
+node_bundler = "esbuild"
+
+[[redirects]]
+from = "echo"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/:splat"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

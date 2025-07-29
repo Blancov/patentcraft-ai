@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { useTheme } from "../../hooks/useTheme";
 
 const SunIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--primary)" aria-hidden="true">
@@ -23,56 +25,47 @@ const MoonIcon = () => (
   </svg>
 );
 
+const buttonStyle = {
+  background: "var(--card)",
+  color: "var(--primary)",
+  border: "2px solid var(--primary)",
+  fontWeight: 600,
+  boxShadow: "none",
+  padding: "0.35em 1.2em",
+  borderRadius: "1.5em",
+  marginLeft: "1rem",
+  textDecoration: "none",
+  fontSize: "1rem",
+  height: "38px",
+  display: "flex",
+  alignItems: "center",
+  transition: "background 0.2s, color 0.2s, border 0.2s",
+  outline: "none",
+  cursor: "pointer"
+};
+
 const Navbar = () => {
-  const [theme, setTheme] = useState(() =>
-    window.localStorage.getItem("theme") || "dark"
-  );
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, isGuest, signOut } = useAuth();
+  const { darkMode, toggleTheme } = useTheme();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    document.documentElement.className = theme === "dark" ? "dark" : "";
-    window.localStorage.setItem("theme", theme);
-  }, [theme]);
+  const handleSignOut = async () => {
+    await signOut();
+    setMenuOpen(false);
+    navigate("/");
+  };
 
-  const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-  const toggleMenu = () => setMenuOpen((open) => !open);
-
-  // Example: Replace with your actual authentication logic
-  const isAuthenticated = false;
-  const userName = "User";
-
-  const signInBtnStyle =
-    theme === "dark"
-      ? {
-          background: "var(--card)",
-          color: "var(--primary)",
-          border: "2px solid var(--primary)",
-          fontWeight: 600,
-          boxShadow: "none",
-          padding: "0.35em 1em",
-          borderRadius: "0.7em",
-          marginLeft: "1rem",
-          textDecoration: "none",
-          fontSize: "1rem",
-          height: "38px",
-          display: "flex",
-          alignItems: "center",
-        }
-      : {
-          background: "var(--primary)",
-          color: "#fff",
-          border: "2px solid var(--primary)",
-          fontWeight: 600,
-          boxShadow: "none",
-          padding: "0.35em 1em",
-          borderRadius: "0.7em",
-          marginLeft: "1rem",
-          textDecoration: "none",
-          fontSize: "1rem",
-          height: "38px",
-          display: "flex",
-          alignItems: "center",
-        };
+  let displayName = "User";
+  if (user) {
+    if (user.email) {
+      displayName = user.email.split("@")[0];
+    } else if (user.username) {
+      displayName = user.username;
+    } else if (user.id && isGuest) {
+      displayName = "Guest";
+    }
+  }
 
   return (
     <nav
@@ -128,7 +121,7 @@ const Navbar = () => {
             }}
           >
             <img
-              src={theme === "dark" ? "/logo-dark.png" : "/logo-light.png"}
+              src={darkMode ? "/logo-dark.png" : "/logo-light.png"}
               alt="PatentCraft Logo"
               style={{
                 height: 38,
@@ -156,7 +149,7 @@ const Navbar = () => {
         <button
           className="navbar-toggle"
           aria-label="Toggle navigation"
-          onClick={toggleMenu}
+          onClick={() => setMenuOpen((open) => !open)}
           style={{
             display: "none",
             background: "none",
@@ -169,18 +162,49 @@ const Navbar = () => {
           <span className="navbar-toggle-icon" />
         </button>
         <div className={`navbar-links${menuOpen ? " open" : ""}`}>
-          <Link
-            to="/login"
-            className="nav-link navbar-signin-btn"
-            style={signInBtnStyle}
-            onClick={() => setMenuOpen(false)}
-          >
-            Sign In
-          </Link>
+          {user && !isGuest ? (
+            <div className="navbar-profile" style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              marginLeft: "1rem"
+            }}>
+              <span className="profile-icon" style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "50%",
+                background: "var(--primary-light)",
+                width: "32px",
+                height: "32px",
+                fontWeight: 700,
+                fontSize: "1.1rem",
+                color: "var(--primary)",
+                textTransform: "uppercase"
+              }}>{displayName[0]?.toUpperCase()}</span>
+              <span>{displayName}</span>
+              <button
+                className="navbar-signout-btn"
+                style={buttonStyle}
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="nav-link navbar-signin-btn"
+              style={buttonStyle}
+              onClick={() => setMenuOpen(false)}
+            >
+              Sign In
+            </Link>
+          )}
           <button
             className="theme-toggle"
             onClick={toggleTheme}
-            aria-label="Toggle theme"
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
             type="button"
             style={{
               background: "none",
@@ -198,37 +222,10 @@ const Navbar = () => {
               transition: "color 0.3s",
             }}
           >
-            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+            {darkMode ? <SunIcon /> : <MoonIcon />}
           </button>
-          {isAuthenticated && (
-            <div className="navbar-profile" style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              marginLeft: "1rem"
-            }}>
-              <span className="profile-icon" style={{
-                display: "flex",
-                alignItems: "center",
-                borderRadius: "50%",
-                background: "var(--primary-light)",
-                padding: "0.2em"
-              }}>{userName[0]}</span>
-              <span>{userName}</span>
-              <button className="navbar-signout-btn" style={{
-                background: "none",
-                border: "none",
-                color: "var(--primary)",
-                fontWeight: 600,
-                cursor: "pointer",
-                padding: "0.3em 0.8em",
-                borderRadius: 6
-              }}>Sign Out</button>
-            </div>
-          )}
         </div>
       </div>
-      {/* Responsive hamburger menu for mobile */}
       <style>
         {`
           @media (max-width: 768px) {

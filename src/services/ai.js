@@ -9,15 +9,7 @@ const sanitizeInput = (text) => {
     .substring(0, 2000);
 };
 
-// Helper to get API endpoint
-const getApiEndpoint = () => {
-  if (import.meta.env.MODE === 'development') {
-    return 'http://localhost:8888/.netlify/functions/generate-draft';
-  }
-  return '/.netlify/functions/generate-draft';
-};
-
-export const generatePatentDraft = async (data) => {
+export const generatePatentDraft = async (data, onChunkReceived) => {
   const sanitizedData = {
     description: sanitizeInput(data.description),
     inventionType: sanitizeInput(data.inventionType) || "device",
@@ -30,15 +22,36 @@ export const generatePatentDraft = async (data) => {
   }
 
   try {
-    const endpoint = getApiEndpoint();
-    console.log('Calling API endpoint:', endpoint);
+    const workerUrl = import.meta.env.VITE_CF_WORKER_URL;
+    console.log('Calling Cloudflare Worker endpoint:', workerUrl);
     
-    const response = await fetch(endpoint, {
+    const response = await fetch(workerUrl, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(sanitizedData)
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          {
+            role: "system",
+            content: `As a USPTO patent attorney, generate a patent application draft for a ${sanitizedData.inventionType} in ${sanitizedData.techField}. Key features: ${sanitizedData.keyFeatures}. Include:
+1. Claims with USPTO numbering
+2. Technical diagrams
+3. Physics validation
+4. Prior art analysis
+5. International IP considerations`
+          },
+          { 
+            role: "user", 
+            content: sanitizedData.description.substring(0, 1000) 
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+        top_p: 0.9,
+        stream: true  // Enable streaming
+      })
     });
 
     if (!response.ok) {
@@ -53,11 +66,44 @@ export const generatePatentDraft = async (data) => {
       throw new Error(`API request failed: ${errorDetails}`);
     }
 
-    const { draft } = await response.json();
+    // Handle streaming response
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let draft = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value);
+      const events = chunk.split('\n\n').filter(Boolean);
+
+      for (const event of events) {
+        if (event.includes('data: [DONE]')) break;
+        
+        if (event.startsWith('data: ')) {
+          const data = event.replace('data: ', '');
+          try {
+            const parsed = JSON.parse(data);
+            const token = parsed.choices[0]?.delta?.content || '';
+            draft += token;
+            
+            // Send token to UI as it arrives
+            if (onChunkReceived) {
+              onChunkReceived(token);
+            }
+          } catch (e) {
+            console.error('Error parsing JSON:', e);
+          }
+        }
+      }
+    }
+
     return DOMPurify.sanitize(draft, {
       ALLOWED_TAGS: ['p', 'br', 'ol', 'ul', 'li'],
       ALLOWED_ATTR: []
     });
+
   } catch (error) {
     console.error('Draft generation error:', error);
     

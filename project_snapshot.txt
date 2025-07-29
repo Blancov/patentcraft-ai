@@ -79,12 +79,6 @@
 .git/refs/remotes
 .git/refs/remotes/origin
 .git/refs/tags
-.netlify
-.netlify/functions-internal
-.netlify/v1
-.netlify/v1/functions
-dist
-netlify
 node_modules
 public
 src

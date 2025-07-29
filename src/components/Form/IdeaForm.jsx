@@ -1,4 +1,4 @@
-import { useState, useRef, useContext } from "react";
+import { useState, useRef, useContext, useEffect } from "react";
 import { generatePatentDraft } from "../../services/ai";
 import { supabase } from "../../services/supabase";
 import { logEvent } from "../../utils/analytics";
@@ -99,18 +99,26 @@ const IdeaForm = () => {
     technicalField: "",
     customTechnicalField: "",
     showCustomField: false,
-    keyFeatures: "",
     draft: "",
     isLoading: false,
     error: "",
     fieldErrors: {},
     lastSubmission: 0,
     charCount: 0,
-    step: 1
+    step: 1,
+    keyFeatures: ""
   });
 
   const errorRef = useRef(null);
   const [hovered, setHovered] = useState(false);
+  const draftRef = useRef(null);
+
+  // Scroll to bottom when draft updates
+  useEffect(() => {
+    if (draftRef.current) {
+      draftRef.current.scrollTop = draftRef.current.scrollHeight;
+    }
+  }, [formState.draft]);
 
   // Update specific form state
   const updateFormState = (updates) => {
@@ -211,7 +219,11 @@ const IdeaForm = () => {
       return;
     }
 
-    updateFormState({ isLoading: true, error: "" });
+    updateFormState({ 
+      isLoading: true, 
+      error: "",
+      draft: ""  // Reset draft before new generation
+    });
 
     try {
       logEvent("Submission", "Generate Draft", formState.idea.substring(0, 30));
@@ -226,12 +238,21 @@ const IdeaForm = () => {
         keyFeatures: formState.keyFeatures
       };
       
-      const draft = await generatePatentDraft(draftData);
-      updateFormState({ draft });
+      // Generate draft with streaming
+      await generatePatentDraft(
+        draftData,
+        (token) => {
+          // Append each token as it arrives
+          updateFormState(prev => ({ 
+            draft: prev.draft + token 
+          }));
+        }
+      );
 
+      // Save to database after generation completes
       const { error: dbError } = await supabase.from("submissions").insert([{
         idea: formState.idea,
-        draft,
+        draft: formState.draft,
         invention_type: formState.inventionType,
         technical_field: formState.showCustomField ?
           formState.customTechnicalField : formState.technicalField,
@@ -608,12 +629,22 @@ const IdeaForm = () => {
 
         {/* Draft Preview */}
         {formState.draft && (
-          <DraftPreview
-            draft={formState.draft}
-            darkMode={darkMode}
-          />
+          <div ref={draftRef}>
+            <DraftPreview
+              draft={formState.draft}
+              darkMode={darkMode}
+            />
+          </div>
         )}
       </div>
+      
+      {/* Animation for spinner */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

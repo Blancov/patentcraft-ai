@@ -25,6 +25,4 @@ dist-ssr
 
 
 .env.local
-# Local Netlify folder
-.netlify
 state.json

@@ -1,0 +1,9 @@
+name = "patent-generator-proxy"
+main = "deepseek-proxy.js"
+compatibility_date = "2024-06-01"
+
+[vars]
+DEEPSEEK_API_KEY = "@deepseek_api_key"
+
+[env.production]
+workers_dev = true
