@@ -1,5 +1,5 @@
-# Logs
-logs
+# Logs - prevent committing sensitive debug information
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,15 +7,23 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependency directories - should be installed fresh
+node_modules/
+
+# Build artifacts - generated files
+dist/
+dist-ssr/
 *.local
 
-# Editor directories and files
+# Environment files - SECURITY CRITICAL
+.env*             # All .env files (development, production, etc.)
+.dev.vars         # Cloudflare Workers dev secrets
+wrangler.toml     # Contains secret placeholders/configuration
+
+# Editor files - personal IDE settings
 .vscode/*
-!.vscode/extensions.json
-.idea
+!.vscode/extensions.json  # Only share extensions list
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -23,6 +31,9 @@ dist-ssr
 *.sln
 *.sw?
 
-
-.env.local
+# Local state files
 state.json
+
+# Cloudflare-specific files
+.cf-deployment/
+.wrangler/

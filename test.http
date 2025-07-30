@@ -1,0 +1,10 @@
+###
+POST http://localhost:8787/
+Content-Type: application/json
+Authorization: Bearer your_token_here
+
+{
+  "messages": [
+    {"role": "user", "content": "Hello"}
+  ]
+}
