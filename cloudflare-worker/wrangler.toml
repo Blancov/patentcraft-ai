@@ -1,28 +1,28 @@
-name = "patent-api-proxy"  # Changed for anonymity
+name = "patent-api-proxy"
 main = "deepseek-proxy.js"
 compatibility_date = "2024-06-01"
-node_compat = true  # Required for Node.js modules
+compatibility_flags = ["nodejs_compat"]  # Updated Node.js compatibility
 
+# Simplified build configuration
 [build]
-command = "echo 'No build needed'"  # Keep if no build step
+command = "echo 'No build needed'"
+
+# Explicit upload settings
+[upload]
+format = "service-worker"
+dir = "cloudflare-worker"  # Point to worker directory
+include = ["deepseek-proxy.js"]  # Only include necessary files
 
 [dev]
 port = 8787
 ip = "localhost"
 
+# Local development variables
 [vars]
-# LOCAL DEVELOPMENT ONLY (gitignored)
-DEEPSEEK_API_KEY = "local_test_key_placeholder"
+DEEPSEEK_API_KEY = "local_test_key_here"
 
+# Production environment
 [env.production]
-name = "patent-api-proxy-production" 
-workers_dev = true 
-account_id = "6bd724bb79ebfb6d4ea9d02114c49f04"  
-site = { bucket = "../dist", entry-point = "cloudflare-worker" }
-
-# OPTIMIZED BUILD SETTINGS
-[build.upload]
-format = "service-worker"
-dir = "."
-include = ["deepseek-proxy.js"]  # Only deploy necessary files
-exclude = ["node_modules", "package.json"]  # Reduce size
+name = "patent-api-proxy-production"
+workers_dev = true
+account_id = "6bd724bb79ebfb6d4ea9d02114c49f04" 
