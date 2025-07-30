@@ -1,4 +1,4 @@
-name = "patent-api-proxy"
+name = "patent-generator-proxy"
 main = "deepseek-proxy.js"
 compatibility_date = "2024-06-01"
 compatibility_flags = ["nodejs_compat"]  # Updated Node.js compatibility
@@ -23,6 +23,6 @@ DEEPSEEK_API_KEY = "local_test_key_here"
 
 # Production environment
 [env.production]
-name = "patent-api-proxy-production"
+name = "patent-generator-proxy-production"
 workers_dev = true
 account_id = "6bd724bb79ebfb6d4ea9d02114c49f04" 
